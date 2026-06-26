@@ -12,7 +12,6 @@
         .logo { font-size: 1.2rem; font-weight: 650; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; color: #fff; }
         
         .page-container { flex: 1; padding: 20px 5%; max-width: 1200px; margin: auto; width: 100%; }
-        
         #grid-autos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         
         .card { background: #111; border: 1px solid #00ff00; padding: 15px; transition: 0.4s; }
@@ -32,9 +31,10 @@
 <body>
 
     <header>
-<nav>
-    <button class="nav-btn" onclick="window.location.href='index.html'">INICIO</button>
-</nav>
+        <div class="logo" id="admin-trigger">FuentesRD Spotter</div>
+        <nav>
+            <button class="nav-btn" onclick="window.location.href='index.html'">INICIO</button>
+        </nav>
     </header>
 
     <div class="page-container">
@@ -63,7 +63,6 @@
     <footer>&copy; 2026 FuentesRD Spotter</footer>
 
     <script type="module">
-        // ... (TU LÓGICA JS PERMANECE EXACTAMENTE IGUAL)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
         import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
@@ -79,16 +78,21 @@
         let autos = [], esAdmin = false, timer;
         const trigger = document.getElementById('admin-trigger');
 
-        trigger.onmousedown = () => { timer = setTimeout(() => {
-            document.querySelectorAll('.page-section').forEach(s => s.style.display = 'none');
-            document.getElementById('view-login').style.display = 'block';
-        }, 5000); };
-        trigger.onmouseup = trigger.onmouseleave = () => clearTimeout(timer);
+        // Esta parte es la que fallaba al quitar el id="admin-trigger"
+        if(trigger) {
+            trigger.onmousedown = () => { timer = setTimeout(() => {
+                document.querySelectorAll('.page-section').forEach(s => s.style.display = 'none');
+                document.getElementById('view-login').style.display = 'block';
+            }, 5000); };
+            trigger.onmouseup = trigger.onmouseleave = () => clearTimeout(timer);
+        }
 
         async function cargar() {
-            const snap = await getDocs(collection(db, "autos"));
-            autos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderizar();
+            try {
+                const snap = await getDocs(collection(db, "autos"));
+                autos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderizar();
+            } catch(e) { console.error("Error al cargar Firebase:", e); }
         }
 
         window.renderizar = () => {
@@ -153,5 +157,4 @@
     };
 </script>
 </body>
-</html>
 </html>
