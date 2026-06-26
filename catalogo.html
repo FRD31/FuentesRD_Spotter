@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FuentesRD Spotter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #0a0a0a; color: white; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* HEADER PREMIUM */
+        header { padding: 30px 5%; border-bottom: 1px solid #5eff00; display: flex; justify-content: space-between; align-items: center; background: #000; }
+        .logo { font-size: 1.8rem; font-weight: 650; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+        .nav-btn { color: #39ff14; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .nav-btn:hover { opacity: 0.7; }
+        
+        /* GRID PREMIUM CON ANIMACIÓN */
+        .page-container { flex: 1; padding: 40px 5%; max-width: 1200px; margin: auto; width: 100%; }
+        #grid-autos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; }
+        
+        .card { 
+            background: #111; border: 1px solid #00ff00; padding: 20px; 
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); 
+            cursor: default;
+        }
+        /* ANIMACIÓN DE SELECCIÓN (HOVER) */
+        .card:hover { 
+            border-color: #39ff14; 
+            transform: translateY(-10px) scale(1.02); 
+            box-shadow: 0 10px 30px rgba(57, 255, 20, 0.15); 
+        }
+        .card img { width: 100%; height: 220px; object-fit: cover; margin-bottom: 15px; display: block; }
+        
+        /* BOTONES PROFESIONALES */
+        button { background: #39ff14; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; color: #000; margin-top: 10px; text-transform: uppercase; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #050505; border: 1px solid #333; color: white; }
+        
+        footer { text-align: center; padding: 30px; border-top: 1px solid #00ff15; color: #3cff00; font-size: 0.8rem; }
+        .page-section { display: none; }
+        .nav-btn { 
+    background: #111111; 
+    border: 1px solid #39ff14; 
+    padding: 10px 20px; 
+    color: #39ff14; 
+    cursor: pointer; 
+    text-transform: uppercase; 
+    font-weight: bold; 
+    transition: 0.3s;
+}
+.nav-btn:hover { background: #39ff14; color: #000; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo" id="admin-trigger">FuentesRD Spotter</div>
+        <nav>
+    <button class="nav-btn" onclick="window.location.href='index.html'">INICIO</button>
+</nav>
+    </header>
+
+    <div class="page-container">
+        <main id="view-catalogo" class="page-section" style="display:block;">
+            <div id="admin-panel" style="background:#0a0a0a; border: 1px solid #39ff14; padding:20px; margin-bottom:30px; display:none;">
+                <h2 style="margin-bottom:15px; color:#39ff14;">ADMIN PANEL</h2>
+                <input type="hidden" id="a-id">
+                <input type="text" id="a-marca" placeholder="Marca">
+                <input type="text" id="a-modelo" placeholder="Modelo">
+                <input type="text" id="a-foto" placeholder="URL Foto">
+                <input type="text" id="a-desc" placeholder="Descripción">
+                <button onclick="guardarAuto()" id="btn-guardar">GUARDAR CAMBIOS</button>
+            </div>
+            <input type="text" id="search" placeholder="Buscar vehículo..." onkeyup="renderizar()" style="border-color:#39ff14;">
+            <div id="grid-autos"></div>
+        </main>
+
+        <section id="view-login" class="page-section">
+            <div style="max-width:300px; margin:50px auto;">
+                <input type="password" id="pass" placeholder="🔑">
+                <button onclick="validarLogin()">AUTENTICAR</button>
+            </div>
+        </section>
+    </div>
+
+    <footer>&copy; 2026 FR-ss CONCESIONARIA</footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+        const db = getFirestore(initializeApp({
+            apiKey: "AIzaSyA2cPGLrvQV3lrVij05NebMfyHy9Nd10Ok",
+            authDomain: "fr-ss-concesionaria.firebaseapp.com",
+            projectId: "fr-ss-concesionaria",
+            storageBucket: "fr-ss-concesionaria.firebasestorage.app",
+            messagingSenderId: "661326107507",
+            appId: "1:661326107507:web:50d639533f646e8d0feb06"
+        }));
+
+        let autos = [];
+        let esAdmin = false;
+        let timer;
+
+        // Lógica de 5 segundos corregida
+        const trigger = document.getElementById('admin-trigger');
+        trigger.onmousedown = () => { timer = setTimeout(() => {
+            document.querySelectorAll('.page-section').forEach(s => s.style.display = 'none');
+            document.getElementById('view-login').style.display = 'block';
+        }, 5000); };
+        trigger.onmouseup = () => clearTimeout(timer);
+        trigger.onmouseleave = () => clearTimeout(timer);
+
+        async function cargar() {
+            const snap = await getDocs(collection(db, "autos"));
+            autos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderizar();
+        }
+
+        window.renderizar = () => {
+            const term = document.getElementById('search').value.toLowerCase();
+            const filtrados = autos.filter(a => (a.marca + " " + a.modelo).toLowerCase().includes(term));
+            document.getElementById('grid-autos').innerHTML = filtrados.map(a => `
+                <div class="card">
+                    <img src="${a.foto}" onerror="this.src='https://via.placeholder.com/400'">
+                    <h3 style="margin-bottom:5px;">${a.marca} ${a.modelo}</h3>
+                    <p style="color:#888; font-size:0.9rem; margin-bottom:15px;">${a.desc}</p>
+                    ${esAdmin ? `
+                        <button onclick="prepararEdicion('${a.id}')" style="background:#ff9900; color:white;">EDITAR</button>
+                        <button onclick="borrar('${a.id}')" style="background:#ff3333; color:white;">ELIMINAR</button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        window.validarLogin = () => {
+            if(document.getElementById('pass').value === '1234') {
+                esAdmin = true;
+                document.getElementById('view-login').style.display = 'none';
+                document.getElementById('view-catalogo').style.display = 'block';
+                document.getElementById('admin-panel').style.display = 'block';
+                renderizar();
+            } else { alert('Acceso denegado'); }
+        }
+
+        window.prepararEdicion = (id) => {
+            const a = autos.find(x => x.id === id);
+            document.getElementById('a-id').value = a.id;
+            document.getElementById('a-marca').value = a.marca;
+            document.getElementById('a-modelo').value = a.modelo;
+            document.getElementById('a-foto').value = a.foto;
+            document.getElementById('a-desc').value = a.desc;
+            document.getElementById('btn-guardar').innerText = "ACTUALIZAR";
+        }
+
+        window.guardarAuto = async () => {
+            const id = document.getElementById('a-id').value;
+            const datos = {
+                marca: document.getElementById('a-marca').value,
+                modelo: document.getElementById('a-modelo').value,
+                foto: document.getElementById('a-foto').value,
+                desc: document.getElementById('a-desc').value
+            };
+            if(id) { await updateDoc(doc(db, "autos", id), datos); } 
+            else { await addDoc(collection(db, "autos"), datos); }
+            location.reload();
+        }
+
+        window.borrar = async (id) => { if(confirm('¿Eliminar vehículo?')) { await deleteDoc(doc(db, "autos", id)); location.reload(); } }
+
+        cargar();
+    </script>
+    <script>
+    // 1. Deshabilitar el clic derecho
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // 2. Deshabilitar la selección de texto
+    document.body.style.userSelect = "none";
+
+    // 3. Deshabilitar combinaciones de teclas (F12, Ctrl+U, Ctrl+Shift+I, etc.)
+    document.onkeydown = function(e) {
+        if (e.keyCode == 123 || // F12
+           (e.ctrlKey && e.shiftKey && e.keyCode == 73) || // Ctrl+Shift+I
+           (e.ctrlKey && e.shiftKey && e.keyCode == 74) || // Ctrl+Shift+J
+           (e.ctrlKey && e.keyCode == 85)) { // Ctrl+U
+            return false;
+        }
+    };
+</script>
+</body>
+</html>
